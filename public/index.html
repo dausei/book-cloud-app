@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Book Manager</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+    }
+    h1 {
+      margin-top: 0;
+    }
+    table, th, td {
+      border: 1px solid #ccc;
+      border-collapse: collapse;
+      padding: 0.5rem;
+    }
+    form {
+      margin-bottom: 2rem;
+    }
+    input[type="text"] {
+      width: 200px;
+      margin-right: 1rem;
+    }
+    button {
+      margin-right: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Book Manager</h1>
+  <form id="book-form">
+    <input type="text" id="title" placeholder="Title" required />
+    <input type="text" id="author" placeholder="Author" required />
+    <input type="text" id="description" placeholder="Description" />
+    <button type="submit">Add Book</button>
+  </form>
+
+  <table id="books-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Title</th>
+        <th>Author</th>
+        <th>Description</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const form = document.getElementById('book-form');
+    const tableBody = document.querySelector('#books-table tbody');
+
+    // Fetch all books on page load
+    window.addEventListener('load', fetchBooks);
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('title').value;
+      const author = document.getElementById('author').value;
+      const description = document.getElementById('description').value;
+      await createBook({ title, author, description });
+      form.reset();
+      fetchBooks();
+    });
+
+    async function fetchBooks() {
+      const res = await fetch('/api/books');
+      const data = await res.json();
+      renderBooks(data);
+    }
+
+    async function createBook(book) {
+      await fetch('/api/books', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(book),
+      });
+    }
+
+    async function updateBook(id, book) {
+      await fetch(`/api/books/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(book),
+      });
+    }
+
+    async function deleteBook(id) {
+      await fetch(`/api/books/${id}`, {
+        method: 'DELETE',
+      });
+      fetchBooks();
+    }
+
+    function renderBooks(books) {
+      tableBody.innerHTML = '';
+      books.forEach((book) => {
+        const tr = document.createElement('tr');
+
+        tr.innerHTML = `
+          <td>${book.id}</td>
+          <td><input type="text" value="${book.title}" data-field="title" data-id="${book.id}"/></td>
+          <td><input type="text" value="${book.author}" data-field="author" data-id="${book.id}"/></td>
+          <td><input type="text" value="${book.description || ''}" data-field="description" data-id="${book.id}"/></td>
+          <td>
+            <button data-action="update" data-id="${book.id}">Save</button>
+            <button data-action="delete" data-id="${book.id}">Delete</button>
+          </td>
+        `;
+
+        tableBody.appendChild(tr);
+      });
+
+      tableBody.querySelectorAll('button[data-action="update"]').forEach((btn) => {
+        btn.addEventListener('click', async (e) => {
+          const id = e.target.dataset.id;
+          const row = e.target.closest('tr');
+          const updatedBook = {
+            title: row.querySelector('input[data-field="title"]').value,
+            author: row.querySelector('input[data-field="author"]').value,
+            description: row.querySelector('input[data-field="description"]').value
+          };
+          await updateBook(id, updatedBook);
+          fetchBooks();
+        });
+      });
+
+      tableBody.querySelectorAll('button[data-action="delete"]').forEach((btn) => {
+        btn.addEventListener('click', async (e) => {
+          const id = e.target.dataset.id;
+          await deleteBook(id);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
